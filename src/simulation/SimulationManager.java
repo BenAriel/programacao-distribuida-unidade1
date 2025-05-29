@@ -55,15 +55,15 @@ public class SimulationManager {
         // Inicialização e Submissão dos Drones
 
         Drone droneNorte = new Drone("Norte", '-', 2, 5);
-
         Drone droneSul = new Drone("Sul", ';', 2, 5);
-
         Drone droneLeste = new Drone("Leste", ',', 2, 5);
         Drone droneOeste = new Drone("Oeste", '#', 2, 5);
+
         executor.submit(droneNorte);
         executor.submit(droneSul);
         executor.submit(droneLeste);
         executor.submit(droneOeste);
+        
         FileLogger.log("SimulationManager",
                 "\n Simulação em execução por " + simulationTimeMinutes + " minuto(s). Aguarde...\n");
         try {

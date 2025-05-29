@@ -7,7 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class FileLogger {
-    private static final String DEFAULT_LOG_FILE = "simulation_log.txt";
+    private static final String DEFAULT_LOG_FILE = "simulation_log.log";
     private static PrintWriter writer;
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
     private static boolean initialized = false;
