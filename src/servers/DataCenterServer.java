@@ -2,7 +2,9 @@ package servers;
 
 import utils.FileLogger;
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -17,6 +19,30 @@ public class DataCenterServer implements Runnable {
     private MulticastPublisher multicastPublisher;
     private volatile boolean ativo;
 
+    /**
+     * Essa função server para informar ao loadBalancer que tem um servidor novo
+     * @param ip
+     * @param port
+     * @throws IOException
+     */
+    public void connectToLoadBalancer(String ip, int port) throws IOException {
+        Socket socket = new Socket(ip, port);
+        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        dos.writeUTF("server-connect");
+        dos.flush();
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
+        while (true) {
+            String request = reader.readLine();
+            if (request == null) break;
+            System.out.println("Received from client: " + request);
+            writer.println("Echo: " + request); 
+        }
+
+        socket.close();
+    }
+
     public DataCenterServer(String id, int port, Database database, MulticastPublisher multicastPublisher) {
         this.id = id;
         this.port = port;
@@ -25,6 +51,11 @@ public class DataCenterServer implements Runnable {
         this.ativo = true;
     }
 
+
+    /**
+     * TODO: Essa função precisa lidar com requisições do cliente tbm
+     * 
+     */
     @Override
     public void run() {
         FileLogger.log("DataCenterServer", "Servidor " + id + " iniciado na porta: " + port);
