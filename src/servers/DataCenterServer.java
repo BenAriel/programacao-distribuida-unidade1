@@ -4,7 +4,6 @@ import utils.FileLogger;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -25,22 +24,13 @@ public class DataCenterServer implements Runnable {
      * @param port
      * @throws IOException
      */
-    public void connectToLoadBalancer(String ip, int port) throws IOException {
-        Socket socket = new Socket(ip, port);
+    public Socket connectToLoadBalancer(String load_balancer_ip, int load_balancer_port) throws IOException {
+        Socket socket = new Socket(load_balancer_ip, load_balancer_port);
         DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-        dos.writeUTF("server-connect");
+        dos.writeUTF("server-connect:" + id + ":" + port);
         dos.flush();
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        PrintWriter writer = new PrintWriter(socket.getOutputStream(), true);
-        while (true) {
-            String request = reader.readLine();
-            if (request == null) break;
-            System.out.println("Received from client: " + request);
-            writer.println("Echo: " + request); 
-        }
-
-        socket.close();
+        return socket;
     }
 
     public DataCenterServer(String id, int port, Database database, MulticastPublisher multicastPublisher) {
@@ -50,7 +40,6 @@ public class DataCenterServer implements Runnable {
         this.multicastPublisher = multicastPublisher;
         this.ativo = true;
     }
-
 
     /**
      * TODO: Essa função precisa lidar com requisições do cliente tbm
@@ -64,6 +53,9 @@ public class DataCenterServer implements Runnable {
                 FileLogger.log("DataCenterServer", "Servidor " + id + " aguardando conexão do LoadBalancer...");
                 try (Socket clientSocket = serverSocket.accept();
                         BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+
+                    String message = in.readLine();
+                    FileLogger.log("Mensagem recebida do cliente: " + message);
 
                     FileLogger.log("DataCenterServer", "Servidor " + id + ": Conexão recebida de "
                             + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort());

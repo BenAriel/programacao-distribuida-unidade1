@@ -12,12 +12,14 @@ public class ClientTest {
 
         lb.run();
 
-        DataCenterServer sv = new DataCenterServer(null, 0, null, null);
+        DataCenterServer sv = new DataCenterServer("localhost", 5432, null, null);
 
         sv.connectToLoadBalancer("localhost", 9000);
 
-        DataCenterServer sv2 = new DataCenterServer(null, 0, null, null);
+        sv.run();
 
-        sv2.connectToLoadBalancer("localhost", 9000);
+        // DataCenterServer sv2 = new DataCenterServer(null, 0, null, null);
+
+        // sv2.connectToLoadBalancer("localhost", 9000);
     }
 }
