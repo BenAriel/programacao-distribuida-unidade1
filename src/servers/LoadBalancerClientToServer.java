@@ -1,7 +1,9 @@
 package servers;
 
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
@@ -46,14 +48,13 @@ public class LoadBalancerClientToServer {
     private Runnable handleRequests() {
         return () -> {
             Socket socket;
-            DataInputStream inputStream;
+            BufferedReader input;
 
             while (true) {
                 try {
                     socket = this.serverSocket.accept();
-                    inputStream = new DataInputStream(socket.getInputStream());
-
-                    String message = inputStream.readUTF();
+                    input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    String message = input.readLine();
                     String[] messageDT = message.split(":");
 
                     if (messageDT.length > 1) {

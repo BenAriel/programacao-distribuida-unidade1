@@ -4,6 +4,8 @@ import utils.FileLogger;
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
+import java.io.ObjectOutputStream;
+import java.io.PrintWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -26,9 +28,9 @@ public class DataCenterServer implements Runnable {
      */
     public Socket connectToLoadBalancer(String load_balancer_ip, int load_balancer_port) throws IOException {
         Socket socket = new Socket(load_balancer_ip, load_balancer_port);
-        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
-        dos.writeUTF("server-connect:" + id + ":" + port);
-        dos.flush();
+        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
+        output.println("server-connect:" + id + ":" + port);
+        output.flush();
 
         return socket;
     }
@@ -52,10 +54,20 @@ public class DataCenterServer implements Runnable {
             while (ativo) {
                 FileLogger.log("DataCenterServer", "Servidor " + id + " aguardando conexão do LoadBalancer...");
                 try (Socket clientSocket = serverSocket.accept();
-                        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+                        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                        ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream())) {
 
                     String message = in.readLine();
-                    FileLogger.log("Mensagem recebida do cliente: " + message);
+
+                    FileLogger.log("mensagem do cliente: " + message + " " + message.equals("get-data"));
+                    
+                    if (message.equals("get-data")) {
+                        out.writeObject(database.getAllData());
+                        out.flush();
+                    
+                        FileLogger.log("DataCenterServer", "Lista enviada para o cliente");
+                        continue;
+                    }
 
                     FileLogger.log("DataCenterServer", "Servidor " + id + ": Conexão recebida de "
                             + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort());

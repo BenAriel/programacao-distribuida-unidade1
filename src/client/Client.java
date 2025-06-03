@@ -1,7 +1,12 @@
 package client;
 
+import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -11,6 +16,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+import data.ClimateData;
 import utils.FileLogger;
 
 class Client {
@@ -18,18 +24,8 @@ class Client {
     private String LOAD_BALANCER_IP = "localhost";
     private int LOAD_BALANCER_PORT = 9000;
 
-    public static void main(String[] args) {
-        new Client();
-    }
-
     public Client() {
         connectedGroups = new ArrayList<>();
-
-        try {
-            this.requestData();
-        } catch (IOException e) {
-            FileLogger.log("Erro ao requisitar dados do servidor");
-        }
     }
 
     /**
@@ -70,16 +66,22 @@ class Client {
         return new String(buffer, 0, receiver.getLength());
     }
 
-    private List<String> requestData() throws IOException
+    public List<ClimateData> requestData() throws IOException, ClassNotFoundException
     {
         Socket socket = new Socket(LOAD_BALANCER_IP, LOAD_BALANCER_PORT);
-        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
 
-        dos.writeUTF("get-data");
-        dos.flush();
+        output.println("get-data");
+
+        String objectData = input.readLine();
+        List<ClimateData> data = new ArrayList<>();
+
+        // if (objectData instanceof List) {
+        //     data = (List<ClimateData>) input.readObject();
+        // }
 
         socket.close();
-
-        return new ArrayList<String>();
+        return data;
     }
 }
