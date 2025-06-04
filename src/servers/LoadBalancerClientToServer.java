@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 
 import utils.FileLogger;
 
@@ -25,14 +26,12 @@ public class LoadBalancerClientToServer {
      * O executor vai servir para lidar com os Runnable sem que a gente tenha que definir um limite
      */
     private final ExecutorService executor;
-    private int nextServerIndex;
     private final ServerSocket serverSocket;
 
     public LoadBalancerClientToServer(int port) throws IOException {
         this.port = port;
         serverSockets = Collections.synchronizedList(new ArrayList<>());
         executor = Executors.newCachedThreadPool();
-        nextServerIndex = 0;
         serverSocket = new ServerSocket(port);
     }
 
@@ -87,19 +86,17 @@ public class LoadBalancerClientToServer {
     }
 
     /**
-     * Algoritmo do round-robin
+     * Algoritmo do random
      * @return
      */
     private InetSocketAddress selectNextServer() {
-        if (serverSockets.isEmpty()) {
-            throw new IllegalStateException("Nenhum servidor de destino configurado para o Load Balancer.");
-        }
-
-        InetSocketAddress server = serverSockets.get(nextServerIndex);
-        nextServerIndex = (nextServerIndex + 1) % serverSockets.size();
-
-        return server;
+    if (serverSockets.isEmpty()) {
+        throw new IllegalStateException("Nenhum servidor de destino configurado para o Load Balancer.");
     }
+
+    int randomIndex = ThreadLocalRandom.current().nextInt(serverSockets.size());
+    return serverSockets.get(randomIndex);
+}
 
     /**
      * Cria uma conexão com um servidor
