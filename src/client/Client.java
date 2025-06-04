@@ -1,12 +1,8 @@
 package client;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
-import java.io.PrintWriter;
+import java.io.ObjectOutputStream;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -15,6 +11,8 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import data.ClimateData;
 import utils.FileLogger;
@@ -63,25 +61,49 @@ class Client {
  
         socket.receive(receiver);
 
+        FileLogger.log(new String(buffer, 0, receiver.getLength()));
+
         return new String(buffer, 0, receiver.getLength());
     }
 
+    @SuppressWarnings("unchecked")
     public List<ClimateData> requestData() throws IOException, ClassNotFoundException
     {
         Socket socket = new Socket(LOAD_BALANCER_IP, LOAD_BALANCER_PORT);
-        BufferedReader input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
 
-        output.println("get-data");
+        ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+        ObjectInputStream input = new ObjectInputStream(socket.getInputStream());
 
-        String objectData = input.readLine();
-        List<ClimateData> data = new ArrayList<>();
+        output.writeObject("get-data");
 
-        // if (objectData instanceof List) {
-        //     data = (List<ClimateData>) input.readObject();
-        // }
+        Object objectData = input.readObject();
+        List<String> data = new ArrayList<>();
+
+        if (objectData instanceof List) {
+            data = (ArrayList<String>) objectData;
+        }
+
+        Function<String, ClimateData> stringToClimateData = (item) -> {
+            item = item.replaceAll("[\\[\\]\\s]", "");
+
+            String[] parts = item.split("//");
+
+            if (parts.length != 4) {
+                throw new IllegalArgumentException("Formato inválido: " + item);
+            }
+
+            double temperatura = Double.parseDouble(parts[0]);
+            double umidade = Double.parseDouble(parts[1]);
+            double pressao = Double.parseDouble(parts[2]);
+            double radiacao = Double.parseDouble(parts[3]);
+
+            return new ClimateData(temperatura, umidade, pressao, radiacao);
+        };
 
         socket.close();
-        return data;
+
+        return data.stream()
+                     .map(stringToClimateData)
+                     .collect(Collectors.toList());
     }
 }

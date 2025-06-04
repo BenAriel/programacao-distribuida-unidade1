@@ -1,11 +1,8 @@
 package servers;
 
 import utils.FileLogger;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -28,8 +25,8 @@ public class DataCenterServer implements Runnable {
      */
     public Socket connectToLoadBalancer(String load_balancer_ip, int load_balancer_port) throws IOException {
         Socket socket = new Socket(load_balancer_ip, load_balancer_port);
-        PrintWriter output = new PrintWriter(socket.getOutputStream(), true);
-        output.println("server-connect:" + id + ":" + port);
+        ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
+        output.writeObject("server-connect:" + id + ":" + port);
         output.flush();
 
         return socket;
@@ -43,23 +40,20 @@ public class DataCenterServer implements Runnable {
         this.ativo = true;
     }
 
-    /**
-     * TODO: Essa função precisa lidar com requisições do cliente tbm
-     * 
-     */
     @Override
     public void run() {
         FileLogger.log("DataCenterServer", "Servidor " + id + " iniciado na porta: " + port);
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (ativo) {
                 FileLogger.log("DataCenterServer", "Servidor " + id + " aguardando conexão do LoadBalancer...");
-                try (Socket clientSocket = serverSocket.accept();
-                        BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                        ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream())) {
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
+                    ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 
-                    String message = in.readLine();
+                    String message = (String) in.readObject();
 
-                    FileLogger.log("mensagem do cliente: " + message + " " + message.equals("get-data"));
+                    FileLogger.log("mensagem do cliente: " + message + " recebida com sucesso");
                     
                     if (message.equals("get-data")) {
                         out.writeObject(database.getAllData());
@@ -71,13 +65,12 @@ public class DataCenterServer implements Runnable {
 
                     FileLogger.log("DataCenterServer", "Servidor " + id + ": Conexão recebida de "
                             + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort());
-                    String dadosRecebidosDoDrone;
 
                     // Espera-se que o LoadBalancer envie uma linha de dados do drone(talvez no
                     // futuro o mais correto seja esperar linhas se for usar stream?)
-                    if ((dadosRecebidosDoDrone = in.readLine()) != null) {
-                        FileLogger.log("DataCenterServer", "Servidor " + id + " recebeu: " + dadosRecebidosDoDrone);
-                        processDroneData(dadosRecebidosDoDrone);
+                    if (message != null) {
+                        FileLogger.log("DataCenterServer", "Servidor " + id + " recebeu: " + message);
+                        processDroneData(message);
                     }
                 } catch (SocketException e) {
                     if (!ativo) {
@@ -86,6 +79,11 @@ public class DataCenterServer implements Runnable {
                         FileLogger.log("DataCenterServer", "Servidor " + id + ": SocketException: " + e.getMessage());
                     }
                 } catch (IOException e) {
+                    if (ativo) {
+                        FileLogger.log("DataCenterServer",
+                                "Servidor " + id + ": Erro de comunicação: " + e.getMessage());
+                    }
+                } catch (ClassNotFoundException e) {
                     if (ativo) {
                         FileLogger.log("DataCenterServer",
                                 "Servidor " + id + ": Erro de comunicação: " + e.getMessage());

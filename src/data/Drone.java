@@ -54,7 +54,7 @@ public class Drone implements Runnable {
     private void enviarDados(String dadosFormatados) {
         FileLogger.log("Drone", "Drone " + this.cardealidade + " enviando: " + dadosFormatados);
         String loadBalancerHost = "localhost";
-        int loadBalancerPort = 8000;
+        int loadBalancerPort = 9001;
 
         try (Socket socket = new Socket(loadBalancerHost, loadBalancerPort);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
@@ -64,6 +64,8 @@ public class Drone implements Runnable {
         } catch (IOException e) {
             FileLogger.log("Drone",
                     "Drone " + this.cardealidade + ": Erro ao enviar dados para Load Balancer: " + e.getMessage());
+
+            e.printStackTrace();
         }
 
     }

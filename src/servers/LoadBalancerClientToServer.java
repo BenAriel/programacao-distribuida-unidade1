@@ -1,11 +1,8 @@
 package servers;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -48,18 +45,23 @@ public class LoadBalancerClientToServer {
     private Runnable handleRequests() {
         return () -> {
             Socket socket;
-            BufferedReader input;
+            ObjectInputStream input;
+            ObjectOutputStream output;
 
             while (true) {
                 try {
                     socket = this.serverSocket.accept();
-                    input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    String message = input.readLine();
+                    output = new ObjectOutputStream(socket.getOutputStream());
+                    
+                    input = new ObjectInputStream(socket.getInputStream());
+                    String message = (String) input.readObject();
                     String[] messageDT = message.split(":");
 
                     if (messageDT.length > 1) {
                         message = messageDT[0];
                     }
+
+                    FileLogger.log("LoadBalancerClientToServer", "mensagem do cliente: " + message);
 
                     switch (message) {
                         case "server-connect":
@@ -71,11 +73,11 @@ public class LoadBalancerClientToServer {
                         case "get-data":
                             FileLogger.log("Cliente solicitou dados: " + socket.getLocalAddress());
 
-                            this.forwardToServer(socket, message);
+                            this.forwardToServer(socket, message, output);
                         default:
                             break;
                     }
-                } catch (IOException e) {
+                } catch (IOException | ClassNotFoundException e) {
                     FileLogger.log("Erro ao salvar");
 
                     e.printStackTrace();
@@ -104,23 +106,27 @@ public class LoadBalancerClientToServer {
      * @param clientSocket
      * @throws IOException
      */
-    private void forwardToServer(Socket clientSocket, String clientMessage) throws IOException {
+    private void forwardToServer(Socket clientSocket, String clientMessage, ObjectOutputStream clientOut) throws IOException {
         InetSocketAddress serverAddress = selectNextServer();
-        if (serverSocket == null) {
-            clientSocket.close();
-
-            System.out.println("No servers available. Connection closed.");
-            return;
-        }
-
-        FileLogger.log(serverAddress.getHostName() + ":" + serverAddress.getPort());
 
         Socket serverSocket = new Socket(serverAddress.getHostName(), serverAddress.getPort());
 
-        OutputStream out = serverSocket.getOutputStream();
-        PrintWriter writer = new PrintWriter(out, true);
-        writer.println(clientMessage);
+        ObjectOutputStream serverOut = new ObjectOutputStream(serverSocket.getOutputStream());
+        ObjectInputStream serverIn = new ObjectInputStream(serverSocket.getInputStream());
+
+        serverOut.writeObject(clientMessage);
+        serverOut.flush();
+
+        try {
+            Object response = serverIn.readObject();
+
+            clientOut.writeObject(response);
+            clientOut.flush();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
 
         serverSocket.close();
+        clientSocket.close();
     }
 }

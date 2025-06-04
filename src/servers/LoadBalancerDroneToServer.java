@@ -3,7 +3,7 @@ package servers;
 import utils.FileLogger;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -77,15 +77,18 @@ public class LoadBalancerDroneToServer implements Runnable {
     }
 
     private void forwardData(String data, InetSocketAddress targetServerAddress) {
-        try (Socket serverConnection = new Socket(targetServerAddress.getAddress(), targetServerAddress.getPort());
-                PrintWriter serverOut = new PrintWriter(serverConnection.getOutputStream(), true)) {
+        try {
+            Socket serverConnection = new Socket(targetServerAddress.getAddress(), targetServerAddress.getPort());
+            ObjectOutputStream serverOut = new ObjectOutputStream(serverConnection.getOutputStream());
 
-            serverOut.println(data); // Envia os dados para o DataCenterServer escolhido
+            serverOut.writeObject(data);
             FileLogger.log("LoadBalancerDroneToServer", "Load Balancer: Dados enviados para " + targetServerAddress);
+
+            serverConnection.close();
         } catch (IOException e) {
             FileLogger.log("LoadBalancerDroneToServer",
                     "Load Balancer: Falha ao encaminhar dados para " + targetServerAddress + ": " + e.getMessage());
-            // Poderia adicionar lógica de retry ou marcar servidor como
+            // TODO: Poderia adicionar lógica de retry ou marcar servidor como
             // indisponívemporariamente
         }
     }
