@@ -11,7 +11,6 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import data.ClimateData;
@@ -83,21 +82,27 @@ class Client {
             data = (ArrayList<String>) objectData;
         }
 
-        Function<String, ClimateData> stringToClimateData = (item) -> {
-            item = item.replaceAll("[\\[\\]\\s]", "");
+        class ClimateDataWithOrigem extends ClimateData {
+            private final String origem;
+            public ClimateDataWithOrigem(String origem, double temperatura, double umidade, double pressao, double radiacao) {
+                super(temperatura, umidade, pressao, radiacao);
+                this.origem = origem;
+            }
+            public String origem() { return origem; }
+        }
 
+        java.util.function.Function<String, ClimateDataWithOrigem> stringToClimateData = (item) -> {
+            item = item.replaceAll("[\\[\\]\s]", "");
             String[] parts = item.split("//");
-
-            if (parts.length != 4) {
+            if (parts.length != 5) {
                 throw new IllegalArgumentException("Formato inválido: " + item);
             }
-
-            double temperatura = Double.parseDouble(parts[0]);
-            double umidade = Double.parseDouble(parts[1]);
-            double pressao = Double.parseDouble(parts[2]);
-            double radiacao = Double.parseDouble(parts[3]);
-
-            return new ClimateData(temperatura, umidade, pressao, radiacao);
+            String origem = parts[0];
+            double temperatura = Double.parseDouble(parts[1]);
+            double umidade = Double.parseDouble(parts[2]);
+            double pressao = Double.parseDouble(parts[3]);
+            double radiacao = Double.parseDouble(parts[4]);
+            return new ClimateDataWithOrigem(origem, temperatura, umidade, pressao, radiacao);
         };
 
         socket.close();

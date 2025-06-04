@@ -30,9 +30,11 @@ public class ClientInterface {
                 while (true) {
                     String groupMessage = client.waitMessage(group);
 
+
+                    //a gente deixa esse print? ou só apenas quando digitar 1?
                     System.out.println("Mensagem do servidor: " + groupMessage);
 
-                    // Essa função faz um beep no lugar de printar a mensagem na tela
+                    // Essa função faz um beep no lugar de printar a mensagem na tela(mas irritante)
                     // Toolkit.getDefaultToolkit().beep();            
                 }
             } catch (IOException e) {
@@ -61,7 +63,13 @@ public class ClientInterface {
                             System.out.println("──────────────────────────────────────────");
                             int i = 1;
                             for (ClimateData d : dados) {
-                                System.out.printf(" Dado #%d\n", i++);
+                                String origem = "?";
+                                try {
+                                    origem = (String) d.getClass().getMethod("origem").invoke(d);
+                                } catch (Exception e) {
+                                    
+                                }
+                                System.out.printf(" Dado #%d (Drone: %s)\n", i++, origem);
                                 System.out.printf(" Temperatura: %.2f °C\n", d.temperatura());
                                 System.out.printf(" Umidade: %.2f %%\n", d.umidade());
                                 System.out.printf(" Pressão: %.2f hPa\n", d.pressao());

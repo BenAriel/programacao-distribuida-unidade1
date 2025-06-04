@@ -54,12 +54,12 @@ public class Drone implements Runnable {
     private void enviarDados(String dadosFormatados) {
         FileLogger.log("Drone", "Drone " + this.cardealidade + " enviando: " + dadosFormatados);
         String loadBalancerHost = "localhost";
-        int loadBalancerPort = 9001;
+        int loadBalancerPort = 8000;
 
         try (Socket socket = new Socket(loadBalancerHost, loadBalancerPort);
                 PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-            out.println(dadosFormatados);
+            out.println(this.cardealidade + "//" + dadosFormatados);
 
         } catch (IOException e) {
             FileLogger.log("Drone",

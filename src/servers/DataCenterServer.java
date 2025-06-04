@@ -7,15 +7,21 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.io.PrintWriter;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.List;
+import java.util.ArrayList;
 
 import data.ClimateData;
 
 public class DataCenterServer implements Runnable {
     private String id;
     private int port;
-    private Database database;
     private MulticastPublisher multicastPublisher;
     private volatile boolean ativo;
+    private static final String DATABASE_HOST = "localhost";
+    private static final int DATABASE_PORT = 9100;
 
     /**
      * Essa função server para informar ao loadBalancer que tem um servidor novo
@@ -26,16 +32,15 @@ public class DataCenterServer implements Runnable {
     public Socket connectToLoadBalancer(String load_balancer_ip, int load_balancer_port) throws IOException {
         Socket socket = new Socket(load_balancer_ip, load_balancer_port);
         ObjectOutputStream output = new ObjectOutputStream(socket.getOutputStream());
-        output.writeObject("server-connect:" + id + ":" + port);
+        output.writeObject("server-connect:" + "localhost" + ":" + port);
         output.flush();
 
         return socket;
     }
 
-    public DataCenterServer(String id, int port, Database database, MulticastPublisher multicastPublisher) {
+    public DataCenterServer(String id, int port, MulticastPublisher multicastPublisher) {
         this.id = id;
         this.port = port;
-        this.database = database;
         this.multicastPublisher = multicastPublisher;
         this.ativo = true;
     }
@@ -48,17 +53,41 @@ public class DataCenterServer implements Runnable {
                 FileLogger.log("DataCenterServer", "Servidor " + id + " aguardando conexão do LoadBalancer...");
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    ObjectOutputStream out = new ObjectOutputStream(clientSocket.getOutputStream());
-                    ObjectInputStream in = new ObjectInputStream(clientSocket.getInputStream());
 
-                    String message = (String) in.readObject();
+                  
+                    clientSocket.setSoTimeout(100);
+                    ObjectInputStream inObj = null;
+                    BufferedReader inText = null;
+                    ObjectOutputStream outObj = null;
+                    boolean isClient = false;
+                    String message = null;
+                    try {
+                        inObj = new ObjectInputStream(clientSocket.getInputStream());
+                        outObj = new ObjectOutputStream(clientSocket.getOutputStream());
+                        Object obj = inObj.readObject();
+                        if (obj instanceof String) {
+                            message = (String) obj;
+                            isClient = true;
+                        }
+                    } catch (Exception e) {
+                        
+                    }
+                    if (!isClient) {
+                        try {
+                            inText = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                            message = inText.readLine();
+                        } catch (Exception e) {
+                            FileLogger.log("DataCenterServer", "Erro ao ler mensagem de drone: " + e.getMessage());
+                        }
+                    }
+                    clientSocket.setSoTimeout(0); // remove timeout
 
                     FileLogger.log("mensagem do cliente: " + message + " recebida com sucesso");
-                    
-                    if (message.equals("get-data")) {
-                        out.writeObject(database.getAllData());
-                        out.flush();
-                    
+
+                    if (isClient && message.equals("get-data")) {
+                        List<String> allData = getAllDataFromDatabase();
+                        outObj.writeObject(allData);
+                        outObj.flush();
                         FileLogger.log("DataCenterServer", "Lista enviada para o cliente");
                         continue;
                     }
@@ -66,8 +95,7 @@ public class DataCenterServer implements Runnable {
                     FileLogger.log("DataCenterServer", "Servidor " + id + ": Conexão recebida de "
                             + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort());
 
-                    // Espera-se que o LoadBalancer envie uma linha de dados do drone(talvez no
-                    // futuro o mais correto seja esperar linhas se for usar stream?)
+                    // Espera-se que o LoadBalancer envie uma linha de dados do drone
                     if (message != null) {
                         FileLogger.log("DataCenterServer", "Servidor " + id + " recebeu: " + message);
                         processDroneData(message);
@@ -79,11 +107,6 @@ public class DataCenterServer implements Runnable {
                         FileLogger.log("DataCenterServer", "Servidor " + id + ": SocketException: " + e.getMessage());
                     }
                 } catch (IOException e) {
-                    if (ativo) {
-                        FileLogger.log("DataCenterServer",
-                                "Servidor " + id + ": Erro de comunicação: " + e.getMessage());
-                    }
-                } catch (ClassNotFoundException e) {
                     if (ativo) {
                         FileLogger.log("DataCenterServer",
                                 "Servidor " + id + ": Erro de comunicação: " + e.getMessage());
@@ -100,10 +123,17 @@ public class DataCenterServer implements Runnable {
     }
 
     private void processDroneData(String rawData) {
-        ClimateData climateData = parseDroneData(rawData);
+        String[] split = rawData.split("//", 2);
+        if (split.length != 2) {
+            FileLogger.log("DataCenterServer", "Servidor " + id + ": Formato inválido de dados recebidos: " + rawData);
+            return;
+        }
+        String origemDrone = split[0];
+        String dadosDrone = split[1];
+        ClimateData climateData = parseDroneData(dadosDrone);
         if (climateData != null) {
-            String dadosParaArmazenar = formatarParaArmazenamento(climateData);
-            database.addData(dadosParaArmazenar);
+            String dadosParaArmazenar = formatarParaArmazenamento(climateData, origemDrone);
+            addDataToDatabase(dadosParaArmazenar);
             FileLogger.log("DataCenterServer", "Servidor " + id + " armazenou: " + dadosParaArmazenar);
 
             // Enviar para usuários via multicast
@@ -113,6 +143,33 @@ public class DataCenterServer implements Runnable {
         } else {
             FileLogger.log("DataCenterServer", "Servidor " + id + ": Falha ao analisar dados: " + rawData);
         }
+    }
+
+    private void addDataToDatabase(String record) {
+        try (Socket dbSocket = new Socket(DATABASE_HOST, DATABASE_PORT);
+             PrintWriter out = new PrintWriter(dbSocket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(dbSocket.getInputStream()))) {
+            out.println("ADD:" + record);
+            in.readLine(); // Espera resposta OK
+        } catch (IOException e) {
+            FileLogger.log("DataCenterServer", "Erro ao adicionar dado ao DatabaseServer: " + e.getMessage());
+        }
+    }
+
+    private List<String> getAllDataFromDatabase() {
+        List<String> result = new ArrayList<>();
+        try (Socket dbSocket = new Socket(DATABASE_HOST, DATABASE_PORT);
+             PrintWriter out = new PrintWriter(dbSocket.getOutputStream(), true);
+             BufferedReader in = new BufferedReader(new InputStreamReader(dbSocket.getInputStream()))) {
+            out.println("GETALL");
+            String line;
+            while ((line = in.readLine()) != null && !line.equals("END")) {
+                result.add(line);
+            }
+        } catch (IOException e) {
+            FileLogger.log("DataCenterServer", "Erro ao buscar dados do DatabaseServer: " + e.getMessage());
+        }
+        return result;
     }
 
     private ClimateData parseDroneData(String dadosDrone) {
@@ -138,7 +195,7 @@ public class DataCenterServer implements Runnable {
         String[] partes = cleanData.split(String.valueOf(delimitador));
         if (partes.length == 4) {
             try {
-                // Ordem de coleta: pressão, radiação, temperatura, umidade
+                
                 double pressao = Double.parseDouble(partes[0].trim());
                 double radiacao = Double.parseDouble(partes[1].trim());
                 double temperatura = Double.parseDouble(partes[2].trim());
@@ -157,11 +214,10 @@ public class DataCenterServer implements Runnable {
         return null;
     }
 
-    private String formatarParaArmazenamento(ClimateData data) {
-
-        return String.format("[%s//%s//%s//%s]",
-                String.format("%.2f", data.temperatura()).replace(",", "."), // Formatando para 2 casas decimais e
-                                                                             // usando ponto
+    private String formatarParaArmazenamento(ClimateData data, String origemDrone) {
+        return String.format("[%s//%s//%s//%s//%s]",
+                origemDrone,
+                String.format("%.2f", data.temperatura()).replace(",", "."),
                 String.format("%.2f", data.umidade()).replace(",", "."),
                 String.format("%.2f", data.pressao()).replace(",", "."),
                 String.format("%.2f", data.radiacao()).replace(",", "."));
