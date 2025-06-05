@@ -4,6 +4,8 @@ import data.ClimateData;
 
 import java.io.IOException;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
@@ -15,7 +17,7 @@ import java.util.concurrent.Executors;
  */
 public class ClientInterface {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws IOException {    
         boolean running = true;
 
         Scanner scanner = new Scanner(System.in);
@@ -25,7 +27,7 @@ public class ClientInterface {
         
         broadcastListener.submit(() -> {
             try {
-                MulticastSocket group = client.joinGroup("225.7.8.9", 55554);
+                MulticastSocket group = client.joinGroup("230.0.0.1", 55554);
 
                 while (true) {
                     String groupMessage = client.waitMessage(group);

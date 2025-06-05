@@ -51,7 +51,7 @@ public class LoadBalancerClientToServer {
                 try {
                     socket = this.serverSocket.accept();
                     output = new ObjectOutputStream(socket.getOutputStream());
-                    
+
                     input = new ObjectInputStream(socket.getInputStream());
                     String message = (String) input.readObject();
                     String[] messageDT = message.split(":");
@@ -59,8 +59,6 @@ public class LoadBalancerClientToServer {
                     if (messageDT.length > 1) {
                         message = messageDT[0];
                     }
-
-                    FileLogger.log("LoadBalancerClientToServer", "mensagem do cliente: " + message);
 
                     switch (message) {
                         case "server-connect":

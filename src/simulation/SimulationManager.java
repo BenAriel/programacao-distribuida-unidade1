@@ -2,12 +2,11 @@ package simulation;
 
 import utils.FileLogger;
 import data.Drone;
-import servers.Database;
 import servers.DataCenterServer;
-import servers.LoadBalancerClientToServer; // Adicionado Import
+import servers.LoadBalancerClientToServer;
 import servers.LoadBalancerDroneToServer;
 import servers.MulticastPublisher;
-import java.io.IOException; // Adicionado Import
+import java.io.IOException;
 import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,25 +18,21 @@ public class SimulationManager {
     public static void main(String[] args) {
         FileLogger.log("SimulationManager", "🚀 Iniciando simulação do Sistema de Coleta de Dados Climáticos...");
 
-        // Portas existentes
         int loadBalancerDronesPort = 8000; 
         int server1Port = 9001;
         int server2Port = 9002;
 
-        // Nova porta para o LoadBalancer dos Clientes
-        int loadBalancerClientsPort = 9000; // Porta para onde os DataCenterServers vão se conectar e os Clients vão
-                                            // enviar requisições de dados
+        int loadBalancerClientsPort = 9000;
 
-        // Multicast (para usuários - Modo 1)
-        String multicastIP = "225.7.8.9";
+        String multicastIP = "230.0.0.1";
         int multicastPort = 55554;
 
-        long simulationTimeMinutes = 1; // Tempo da simulação
+        long simulationTimeMinutes = 3;
         MulticastPublisher publisher = null;
         try {
             publisher = new MulticastPublisher(multicastIP, multicastPort);
         } catch (SocketException e) {
-            FileLogger.log("SimulationManager", "🚨 Falha ao criar MulticastPublisher: " + e.getMessage());
+            FileLogger.log("SimulationManager", "Falha ao criar MulticastPublisher: " + e.getMessage());
             e.printStackTrace();
             return;
         }
@@ -48,7 +43,6 @@ public class SimulationManager {
 
         ExecutorService executor = Executors.newCachedThreadPool();
 
-        // --- INÍCIO: Adição do LoadBalancerClientToServer ---
         LoadBalancerClientToServer lbClientToServer = null;
         try {
             lbClientToServer = new LoadBalancerClientToServer(loadBalancerClientsPort);

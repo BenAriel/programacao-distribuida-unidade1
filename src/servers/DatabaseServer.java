@@ -28,6 +28,7 @@ public class DatabaseServer {
             PrintWriter out = new PrintWriter(client.getOutputStream(), true)
         ) {
             String line;
+
             while ((line = in.readLine()) != null) {
                 if (line.startsWith("ADD:")) {
                     String record = line.substring(4);

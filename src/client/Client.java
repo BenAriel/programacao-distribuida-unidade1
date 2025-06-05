@@ -36,7 +36,7 @@ class Client {
         MulticastSocket socket = new MulticastSocket(port);
         InetAddress multicastIp = InetAddress.getByName(inetGroup);
         InetSocketAddress group = new InetSocketAddress(multicastIp, port);
-        NetworkInterface interfaceRede = NetworkInterface.getByName("wlo1");
+        NetworkInterface interfaceRede = NetworkInterface.getByName("eth5");
 
         socket.joinGroup(group, interfaceRede);
 

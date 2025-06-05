@@ -162,9 +162,11 @@ public class DataCenterServer implements Runnable {
              PrintWriter out = new PrintWriter(dbSocket.getOutputStream(), true);
              BufferedReader in = new BufferedReader(new InputStreamReader(dbSocket.getInputStream()))) {
             out.println("GETALL");
-            String line;
-            while ((line = in.readLine()) != null && !line.equals("END")) {
+            String line = in.readLine();
+            while (line != null && !line.equals("END")) {
                 result.add(line);
+
+                line = in.readLine();
             }
         } catch (IOException e) {
             FileLogger.log("DataCenterServer", "Erro ao buscar dados do DatabaseServer: " + e.getMessage());
