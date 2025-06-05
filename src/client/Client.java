@@ -11,6 +11,7 @@ import java.net.NetworkInterface;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import data.ClimateData;
@@ -18,7 +19,7 @@ import utils.FileLogger;
 
 class Client {
     private List<MulticastSocket> connectedGroups;
-    private String LOAD_BALANCER_IP = "localhost";
+    private String LOAD_BALANCER_IP = "10.10.71.83";
     private int LOAD_BALANCER_PORT = 9000;
 
     public Client() {
@@ -91,7 +92,7 @@ class Client {
             public String origem() { return origem; }
         }
 
-        java.util.function.Function<String, ClimateDataWithOrigem> stringToClimateData = (item) -> {
+        Function<String, ClimateDataWithOrigem> stringToClimateData = (item) -> {
             item = item.replaceAll("[\\[\\]\s]", "");
             String[] parts = item.split("//");
             if (parts.length != 5) {

@@ -52,7 +52,7 @@ public class SimulationManager {
                     finalLbClientToServer.run();
                 } catch (Exception e) {
                     FileLogger.log("SimulationManager",
-                            "🚨 Erro ao executar LoadBalancerClientToServer: " + e.getMessage());
+                            "Erro ao executar LoadBalancerClientToServer: " + e.getMessage());
                     e.printStackTrace();
                 }
             });

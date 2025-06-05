@@ -21,6 +21,7 @@ public class DatabaseServer {
             new Thread(() -> handleClient(client)).start();
         }
     }
+    
 
     private void handleClient(Socket client) {
         try (
